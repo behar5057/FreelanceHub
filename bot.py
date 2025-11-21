@@ -2,8 +2,6 @@ import os
 import logging
 from telegram import ReplyKeyboardMarkup, KeyboardButton, Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from flask import Flask
-import threading
 
 # Setup logging
 logging.basicConfig(
@@ -13,18 +11,6 @@ logging.basicConfig(
 
 # Get environment variables
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-
-# Create Flask app for health checks
-app = Flask(__name__)
-
-@app.route('/')
-def health_check():
-    return "🤖 FreelanceHub Bot is running!"
-
-def run_flask():
-    """Run Flask app in a separate thread"""
-    port = int(os.getenv('PORT', 10000))
-    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
 
 def main_menu_keyboard():
     return ReplyKeyboardMarkup([
@@ -93,11 +79,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Please use the menu buttons below! 👇", reply_markup=main_menu_keyboard())
 
 def main():
-    # Start Flask server in a separate thread for health checks
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
-    
     # Create Telegram bot application
     application = Application.builder().token(BOT_TOKEN).build()
     
@@ -108,7 +89,6 @@ def main():
     # Start the Bot
     print("🤖 FreelanceHub Bot Starting...")
     print("✅ Bot is LIVE and running!")
-    print("🌐 Health check server running on port 10000")
     application.run_polling()
 
 if __name__ == '__main__':
