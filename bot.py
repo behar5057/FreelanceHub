@@ -1,7 +1,9 @@
 import os
 import logging
+import asyncio
 from telegram import ReplyKeyboardMarkup, KeyboardButton, Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.error import Conflict
 
 # Setup logging
 logging.basicConfig(
@@ -55,7 +57,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
     elif text == "🗂 Categories":
-        await update.message.reply_text(
+        await update_message.reply_text(
             "🏷️ *FreelanceHub Categories*\n\n*Available Categories:*\n\n🎨 Graphic Design\n✍️ Writing & Copywriting\n🌍 Translation\n💻 Programming & Tech\n🎬 Video & Audio Editing\n🤖 AI Services\n📈 Marketing & Business\n🛡️ Cyber Security (PRO)", 
             parse_mode='Markdown'
         )
@@ -78,7 +80,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("Please use the menu buttons below! 👇", reply_markup=main_menu_keyboard())
 
-def main():
+async def main():
     # Create Telegram bot application
     application = Application.builder().token(BOT_TOKEN).build()
     
@@ -86,10 +88,27 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    # Start the Bot
+    # Start the Bot with conflict handling
     print("🤖 FreelanceHub Bot Starting...")
-    print("✅ Bot is LIVE and running!")
-    application.run_polling()
+    
+    try:
+        await application.initialize()
+        await application.start()
+        print("✅ Bot is LIVE and running!")
+        await application.updater.start_polling()
+        
+        # Keep the bot running
+        while True:
+            await asyncio.sleep(3600)  # Sleep for 1 hour
+            
+    except Conflict:
+        print("⚠️  Another bot instance is running. Waiting...")
+        await asyncio.sleep(10)
+        await main()  # Restart
+    except Exception as e:
+        print(f"❌ Error: {e}")
+    finally:
+        await application.stop()
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
