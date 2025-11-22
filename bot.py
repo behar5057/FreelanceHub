@@ -1,9 +1,9 @@
 import os
 import logging
-import asyncio
 from telegram import ReplyKeyboardMarkup, KeyboardButton, Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from telegram.error import Conflict
+from flask import Flask
+import threading
 
 # Setup logging
 logging.basicConfig(
@@ -13,6 +13,19 @@ logging.basicConfig(
 
 # Get environment variables
 BOT_TOKEN = os.getenv('BOT_TOKEN')
+
+# Create Flask app for health checks
+app = Flask(__name__)
+
+@app.route('/')
+@app.route('/health')
+def health_check():
+    return "🤖 FreelanceHub Bot is running!"
+
+def run_flask():
+    """Run Flask app in a separate thread"""
+    port = int(os.getenv('PORT', 10000))
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
 
 def main_menu_keyboard():
     return ReplyKeyboardMarkup([
@@ -57,7 +70,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode='Markdown'
         )
     elif text == "🗂 Categories":
-        await update_message.reply_text(
+        await update.message.reply_text(
             "🏷️ *FreelanceHub Categories*\n\n*Available Categories:*\n\n🎨 Graphic Design\n✍️ Writing & Copywriting\n🌍 Translation\n💻 Programming & Tech\n🎬 Video & Audio Editing\n🤖 AI Services\n📈 Marketing & Business\n🛡️ Cyber Security (PRO)", 
             parse_mode='Markdown'
         )
@@ -80,7 +93,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("Please use the menu buttons below! 👇", reply_markup=main_menu_keyboard())
 
-async def main():
+def main():
+    # Start Flask server in a separate thread for health checks
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+    
     # Create Telegram bot application
     application = Application.builder().token(BOT_TOKEN).build()
     
@@ -88,27 +106,11 @@ async def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    # Start the Bot with conflict handling
+    # Start the Bot
     print("🤖 FreelanceHub Bot Starting...")
-    
-    try:
-        await application.initialize()
-        await application.start()
-        print("✅ Bot is LIVE and running!")
-        await application.updater.start_polling()
-        
-        # Keep the bot running
-        while True:
-            await asyncio.sleep(3600)  # Sleep for 1 hour
-            
-    except Conflict:
-        print("⚠️  Another bot instance is running. Waiting...")
-        await asyncio.sleep(10)
-        await main()  # Restart
-    except Exception as e:
-        print(f"❌ Error: {e}")
-    finally:
-        await application.stop()
+    print("✅ Bot is LIVE and running!")
+    print("🌐 Health check server running")
+    application.run_polling()
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    main()
